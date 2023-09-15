@@ -5,6 +5,9 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class CommonRepositoryService {
@@ -19,7 +22,7 @@ public class CommonRepositoryService {
 
     private  <T> void setImmutableField(T oldObject, T newObject){
         Class<?> clazz = oldObject.getClass();
-        Field[] fields = clazz.getDeclaredFields();
+        List<Field> fields = getAllFields(clazz);
 
         for (Field field : fields) {
             if (field.isAnnotationPresent(ImmutableField.class)) {
@@ -33,6 +36,20 @@ public class CommonRepositoryService {
                 }
             }
         }
+    }
+
+    private static List<Field> getAllFields(Class<?> clazz) {
+        List<Field> fields = new ArrayList<>();
+        while (clazz != null) {
+            Field[] declaredFields = clazz.getDeclaredFields();
+            for (Field field : declaredFields) {
+                if (!Modifier.isStatic(field.getModifiers())) {
+                    fields.add(field);
+                }
+            }
+            clazz = clazz.getSuperclass();
+        }
+        return fields;
     }
 
 }
