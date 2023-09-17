@@ -3,6 +3,7 @@ package com.example.mongodbimmutablefields;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -15,24 +16,30 @@ public class CommonRepositoryService {
         CommonEntity old = repository.findById(entity.getId()).orElseThrow(() -> new IllegalArgumentException("Not found"));
         entity.setVersion(old.getVersion());
 
-        setImmutableField(old,entity);
-
+        try {
+            setImmutableField(old,entity);
+        }catch (final Exception exception){
+            exception.printStackTrace();
+        }
         return repository.save(entity);
     }
 
-    private  <T> void setImmutableField(T oldObject, T newObject){
+
+    public static <T> void setImmutableField(T oldObject, T newObject) {
         Class<?> clazz = oldObject.getClass();
         List<Field> fields = getAllFields(clazz);
-
         for (Field field : fields) {
             if (field.isAnnotationPresent(ImmutableField.class)) {
-                try {
-                    field.setAccessible(true);
-                    Object oldValue = field.get(oldObject);
-                    field.set(newObject, oldValue);
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                    // Handle the exception as needed
+                    ReflectionUtils.makeAccessible(field);
+                    Object oldValue = ReflectionUtils.getField(field, oldObject);
+                    ReflectionUtils.setField(field, newObject, oldValue);
+            } else if (!field.getType().isPrimitive() && !field.getType().getName().startsWith("java.lang")) {
+                // Recursively check nested objects
+                ReflectionUtils.makeAccessible(field);
+                Object oldFieldValue = ReflectionUtils.getField(field, oldObject);
+                Object newFieldValue = ReflectionUtils.getField(field, newObject);
+                if (oldFieldValue != null && newFieldValue != null) {
+                    setImmutableField(oldFieldValue, newFieldValue);
                 }
             }
         }
