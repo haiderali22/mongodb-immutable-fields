@@ -8,9 +8,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Getter
 @Document
 public class Order extends CommonEntity{
-
     @ImmutableField
     private String address;
-
     private String phoneNumber;
+    private Reference orderingPerson;
 }
